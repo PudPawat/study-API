@@ -2,9 +2,15 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import json
 import random
+import uvicorn
+import string
 from typing import List
 
 app = FastAPI()
+
+@app.get("/")
+def health_check():
+    return {"message": "Health Check Success!"}
 
 # Path to the JSON file containing coupons
 COUPON_FILE = "coupons.json"
@@ -45,3 +51,29 @@ async def get_coupon():
 async def remaining_coupons():
     coupons = load_coupons()
     return {"remaining_coupons": len(coupons)}
+
+
+def generate_random_coupon():
+    random_part = ''.join(random.choices(string.digits, k=5))
+    return f"COUPON{random_part}"
+
+class CouponRequest(BaseModel):
+    amount: int
+
+@app.post("/add-coupon/")
+async def add_coupon(body: CouponRequest):
+    if body.amount is None or body.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0.")
+
+    coupons = load_coupons()
+    new_coupons = []
+
+    for _ in range(body.amount):
+        new_coupon = generate_random_coupon() 
+        new_coupons.append(new_coupon)  
+    
+    coupons.extend(new_coupons) 
+
+    save_coupons(coupons)
+
+    return {"message": "Add coupon successful!"}
